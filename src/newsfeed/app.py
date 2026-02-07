@@ -178,7 +178,10 @@ class NewsfeedApp(App):
         table_ids = ["table-all"] + [f"table-{cat}" for cat in self.all_categories]
         for tid in table_ids:
             table = self.query_one(f"#{tid}", DataTable)
-            time_col_key = table.columns[2].key
+            col_keys = list(table.columns.keys())
+            if len(col_keys) < 3:
+                continue
+            time_col_key = col_keys[2]
             for row_key in table.rows:
                 link = str(row_key.value)
                 ago = time_lookup.get(link, "")

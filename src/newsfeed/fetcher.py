@@ -6,7 +6,7 @@ import feedparser
 import httpx
 
 from newsfeed import cache
-from newsfeed.utils import sanitize_html
+from newsfeed.utils import published_ts, sanitize_html
 
 
 def _fetch_and_parse(source_name: str, url: str, use_cache: bool) -> list[dict]:
@@ -33,7 +33,7 @@ def _fetch_and_parse(source_name: str, url: str, use_cache: bool) -> list[dict]:
             "description": sanitize_html(
                 entry.get("summary") or entry.get("description", "")
             ),
-            "published": entry.get("published", ""),
+            "published": entry.get("published") or entry.get("updated", ""),
             "source": source_name,
         })
 
@@ -61,5 +61,5 @@ def fetch_category(
             all_entries.extend(entries[:limit])
 
     # Sort by published date descending (most recent first)
-    all_entries.sort(key=lambda e: e.get("published", ""), reverse=True)
+    all_entries.sort(key=lambda e: published_ts(e.get("published")), reverse=True)
     return all_entries
