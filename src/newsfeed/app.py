@@ -1,5 +1,6 @@
 """Textual TUI app — live-streaming news feed with category tabs."""
 
+import subprocess
 import time
 import webbrowser
 from datetime import datetime
@@ -138,8 +139,12 @@ class NewsfeedApp(App):
         status.article_count = total
         status.last_refresh = datetime.now().strftime("%H:%M:%S")
 
-        # Terminal bell for new articles
-        self.bell()
+        # Audible notification for new articles
+        subprocess.Popen(
+            ["afplay", "/System/Library/Sounds/Pop.aiff"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
     def _mark_cycle_done(self) -> None:
         status = self.query_one(StatusBar)
