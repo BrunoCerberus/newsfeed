@@ -26,6 +26,9 @@ newsfeed --watch --interval 120   # Custom refresh interval
 newsfeed --no-cache               # Skip cache, fetch fresh
 newsfeed --list-categories        # Show available categories
 newsfeed --open 3                 # Open 3rd article in browser
+newsfeed --live                   # Interactive TUI with live updates
+newsfeed --live --interval 60     # TUI with 60s refresh cycle
+newsfeed --live --no-cache        # TUI with fresh fetches only
 ```
 
 Both `newsfeed` and `news` commands work (dual entry points).
@@ -77,6 +80,7 @@ CLI flags override config file values.
 ```
 src/newsfeed/
 ├── cli.py        # Click CLI — args, flags, watch mode, orchestration
+├── app.py        # Textual TUI — live mode with category tabs and polling
 ├── feeds.py      # RSS feed registry (category → source name → URL)
 ├── fetcher.py    # Parallel HTTP fetch + feedparser parsing
 ├── display.py    # Rich panels, tables, color-coded categories
@@ -91,3 +95,4 @@ src/newsfeed/
 - [feedparser](https://feedparser.readthedocs.io/) — RSS/Atom parsing
 - [httpx](https://www.python-httpx.org/) — HTTP client with timeouts and redirects
 - [rich](https://rich.readthedocs.io/) — Terminal formatting and panels
+- [textual](https://textual.textualize.io/) — TUI framework for live mode

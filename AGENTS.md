@@ -7,7 +7,10 @@
 ## Module responsibilities
 
 ### `cli.py` — Orchestrator
-The only module that imports from all others. Defines the Click command with all CLI flags and arguments. Handles watch mode (loop + sleep), open-in-browser (`webbrowser.open`), and category resolution. Loads user config at module level.
+The only module that imports from all others. Defines the Click command with all CLI flags and arguments. Handles watch mode (loop + sleep), open-in-browser (`webbrowser.open`), and category resolution. Loads user config at module level. The `--live` flag early-returns into `app.run_live()` before any existing logic runs (lazy import for zero cost when not used).
+
+### `app.py` — Textual TUI (live mode)
+Full-screen interactive app launched by `--live`. Uses `TabbedContent` with one `DataTable` per category tab plus an "All" tab. Background polling via `@work(thread=True, exclusive=True)` calls `fetcher.fetch_category()` in an OS thread and pushes updates to the UI via `call_from_thread()`. Deduplicates articles by link. Key bindings: `q` quit, `r` force refresh, `Enter` open article in browser. `StatusBar` widget shows article count, last refresh time, and countdown to next poll.
 
 ### `feeds.py` — Data registry
 Pure data, no I/O. Three dicts:
@@ -45,6 +48,7 @@ Reads `~/.config/newsfeed/config.toml` using stdlib `tomllib`. Merges with `DEFA
 
 ## Data flow
 
+### Standard mode
 ```
 User runs CLI
     → cli.py parses args via Click
@@ -56,6 +60,21 @@ User runs CLI
     → cli.py passes entries to display.display_category() or display.display_all()
         → display builds Rich Panel + Table
         → prints to console
+```
+
+### Live TUI mode (`--live`)
+```
+User runs CLI with --live
+    → cli.py early-returns into app.run_live()
+    → NewsfeedApp mounts TabbedContent + DataTables + StatusBar
+    → on_mount() triggers _poll_feeds() + sets interval timers
+    → _poll_feeds() runs in @work(thread=True)
+        → fetches all categories via fetcher.fetch_category()
+        → deduplicates by link
+        → call_from_thread(_merge_and_rebuild)
+            → updates DataTables + StatusBar
+    → interval timer re-triggers _poll_feeds() every N seconds
+    → 1s tick timer updates countdown in StatusBar
 ```
 
 ## Design constraints
@@ -73,3 +92,4 @@ To add a new feature, the typical pattern is:
 2. Add processing logic to `fetcher.py` if it involves data
 3. Add display logic to `display.py` if it involves output
 4. Wire it together in `cli.py` with a new Click option
+5. For TUI-specific features, extend `app.py` (new widgets, key bindings, or worker methods)

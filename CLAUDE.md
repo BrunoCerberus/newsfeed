@@ -11,12 +11,14 @@ A Python CLI tool that reads RSS news feeds and displays them in the terminal wi
 - **httpx** for HTTP requests (not requests — modern API, built-in timeout/redirects)
 - **feedparser** for RSS/Atom parsing
 - **rich** for terminal panels, tables, and color output
+- **textual** for the interactive TUI live mode (`--live`)
 
 ## Architecture
 
 ```
 src/newsfeed/
 ├── cli.py        # Entry point. Click command with all flags. Wires fetcher → display
+├── app.py        # Textual TUI app. --live launches NewsfeedApp with category tabs + background polling
 ├── feeds.py      # Pure data: CATEGORIES dict (category → {source_name → url}), ALIASES, CATEGORY_COLORS
 ├── fetcher.py    # ThreadPoolExecutor fetches all sources in parallel, feedparser parses XML
 ├── display.py    # Rich Console, Panel, Table. One panel per category, color-coded
