@@ -1,5 +1,7 @@
 # newsfeed
 
+![newsfeed live mode](assets/live-mode.png)
+
 Terminal news reader that fetches RSS feeds from major news sources and displays them as color-coded Rich panels. No API keys, no browser — just news in your terminal.
 
 ## Install
