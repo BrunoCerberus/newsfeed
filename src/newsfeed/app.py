@@ -79,7 +79,7 @@ class NewsfeedApp(App):
             # One tab per category
             for cat in self.all_categories:
                 color = CATEGORY_COLORS.get(cat, "white")
-                label = Text(cat.capitalize(), style=color)
+                label = f"[{color}]{cat.capitalize()}[/{color}]"
                 with TabPane(label, id=f"tab-{cat}"):
                     yield DataTable(id=f"table-{cat}", cursor_type="row")
         yield StatusBar()
