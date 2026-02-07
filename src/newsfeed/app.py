@@ -95,6 +95,8 @@ class NewsfeedApp(App):
 
         # Start the continuous polling loop
         self._stream_feeds()
+        # Refresh "time ago" column every 30s so it stays accurate
+        self.set_interval(30, self._refresh_time_column)
 
     @work(thread=True, exclusive=True, group="poll")
     def _stream_feeds(self) -> None:
@@ -109,9 +111,12 @@ class NewsfeedApp(App):
             for cat in self.all_categories:
                 if worker.is_cancelled:
                     return
-                entries = fetch_category(
-                    CATEGORIES[cat], use_cache=self.use_cache, limit=self.limit
-                )
+                try:
+                    entries = fetch_category(
+                        CATEGORIES[cat], use_cache=self.use_cache, limit=self.limit
+                    )
+                except Exception:
+                    continue
                 fresh = [
                     e for e in entries
                     if e.get("link") and e["link"] not in self.seen_links
@@ -158,6 +163,26 @@ class NewsfeedApp(App):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+
+    def _refresh_time_column(self) -> None:
+        """Update the Time column on all tables so relative times stay accurate."""
+        # Build a link -> fresh time_ago lookup from all articles
+        time_lookup: dict[str, str] = {}
+        for cat in self.all_categories:
+            for entry in self.articles[cat]:
+                link = entry.get("link", "")
+                if link:
+                    time_lookup[link] = time_ago(entry.get("published"))
+
+        # Update every table's Time column (column index 2) in-place
+        table_ids = ["table-all"] + [f"table-{cat}" for cat in self.all_categories]
+        for tid in table_ids:
+            table = self.query_one(f"#{tid}", DataTable)
+            time_col_key = table.columns[2].key
+            for row_key in table.rows:
+                link = str(row_key.value)
+                ago = time_lookup.get(link, "")
+                table.update_cell(row_key, time_col_key, ago)
 
     def _mark_cycle_done(self) -> None:
         status = self.query_one(StatusBar)
