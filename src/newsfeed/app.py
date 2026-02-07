@@ -11,6 +11,7 @@ from textual.binding import Binding
 from textual.reactive import reactive
 from textual.widgets import DataTable, Footer, Header, Static, TabbedContent, TabPane
 from textual import work
+from textual.worker import get_current_worker
 
 from newsfeed.feeds import CATEGORIES, CATEGORY_COLORS, get_all_categories
 from newsfeed.fetcher import fetch_category
@@ -68,6 +69,7 @@ class NewsfeedApp(App):
         # category -> list of article dicts
         self.articles: dict[str, list[dict]] = {cat: [] for cat in self.all_categories}
         self.seen_links: set[str] = set()
+        self._initial_load = True
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -102,8 +104,11 @@ class NewsfeedApp(App):
         to the UI immediately. After a full cycle through all categories,
         sleep for refresh_interval before starting the next cycle.
         """
-        while True:
+        worker = get_current_worker()
+        while not worker.is_cancelled:
             for cat in self.all_categories:
+                if worker.is_cancelled:
+                    return
                 entries = fetch_category(
                     CATEGORIES[cat], use_cache=self.use_cache, limit=self.limit
                 )
@@ -116,11 +121,18 @@ class NewsfeedApp(App):
                         self.seen_links.add(e["link"])
                     self.call_from_thread(self._ingest, cat, fresh)
 
+            # Mark initial load complete after first full cycle
+            if self._initial_load:
+                self._initial_load = False
+
             # Update the "last refresh" timestamp after a full cycle
             self.call_from_thread(self._mark_cycle_done)
 
-            # Wait before next full cycle
-            time.sleep(self.refresh_interval)
+            # Sleep in 1s increments so we can exit quickly
+            for _ in range(self.refresh_interval):
+                if worker.is_cancelled:
+                    return
+                time.sleep(1)
 
     def _ingest(self, category: str, fresh: list[dict]) -> None:
         """Add new articles and rebuild affected tables. Plays bell sound."""
@@ -139,12 +151,13 @@ class NewsfeedApp(App):
         status.article_count = total
         status.last_refresh = datetime.now().strftime("%H:%M:%S")
 
-        # Audible notification for new articles
-        subprocess.Popen(
-            ["afplay", "/System/Library/Sounds/Pop.aiff"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        # Audible notification only after initial load
+        if not self._initial_load:
+            subprocess.Popen(
+                ["afplay", "/System/Library/Sounds/Glass.aiff"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
 
     def _mark_cycle_done(self) -> None:
         status = self.query_one(StatusBar)
