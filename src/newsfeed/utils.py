@@ -29,6 +29,16 @@ def time_ago(published: str | None) -> str:
         return f"{days}d ago"
 
 
+def published_ts(published: str | None) -> float:
+    """Parse a published date string to a Unix timestamp. Returns 0.0 on failure."""
+    if not published:
+        return 0.0
+    try:
+        return parsedate_to_datetime(published).timestamp()
+    except Exception:
+        return 0.0
+
+
 def sanitize_html(text: str | None) -> str:
     """Strip HTML tags and decode entities from text."""
     if not text:

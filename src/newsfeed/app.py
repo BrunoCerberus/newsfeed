@@ -1,5 +1,6 @@
 """Textual TUI app — live-streaming news feed with category tabs."""
 
+import time
 import webbrowser
 from datetime import datetime
 
@@ -12,26 +13,24 @@ from textual import work
 
 from newsfeed.feeds import CATEGORIES, CATEGORY_COLORS, get_all_categories
 from newsfeed.fetcher import fetch_category
-from newsfeed.utils import time_ago
+from newsfeed.utils import published_ts, time_ago
 
 
 class StatusBar(Static):
-    """Bottom status bar with article count, last refresh, and countdown."""
+    """Bottom status bar with article count and last refresh time."""
 
     article_count: reactive[int] = reactive(0)
     last_refresh: reactive[str] = reactive("—")
-    countdown: reactive[int] = reactive(0)
 
     def render(self) -> str:
         return (
             f" {self.article_count} articles"
             f" | Last: {self.last_refresh}"
-            f" | Next in: {self.countdown}s"
         )
 
 
 class NewsfeedApp(App):
-    """Live TUI news reader with category tabs and background polling."""
+    """Live TUI news reader with category tabs and continuous polling."""
 
     TITLE = "newsfeed — live mode"
 
@@ -68,7 +67,6 @@ class NewsfeedApp(App):
         # category -> list of article dicts
         self.articles: dict[str, list[dict]] = {cat: [] for cat in self.all_categories}
         self.seen_links: set[str] = set()
-        self._countdown = self.refresh_interval
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -92,68 +90,60 @@ class NewsfeedApp(App):
             table = self.query_one(f"#{tid}", DataTable)
             table.add_columns("Title", "Source", "Time")
 
-        # Initial fetch + timers
-        self._poll_feeds()
-        self.set_interval(self.refresh_interval, self._poll_feeds)
-        self.set_interval(1, self._tick_countdown)
+        # Start the continuous polling loop
+        self._stream_feeds()
 
-    def _tick_countdown(self) -> None:
-        self._countdown = max(0, self._countdown - 1)
-        self.query_one(StatusBar).countdown = self._countdown
+    @work(thread=True, exclusive=True, group="poll")
+    def _stream_feeds(self) -> None:
+        """Continuously poll categories one at a time in a round-robin loop.
 
-    @work(thread=True, exclusive=True)
-    def _poll_feeds(self) -> None:
-        """Fetch all categories in a background thread."""
-        new_articles: dict[str, list[dict]] = {}
-        for cat in self.all_categories:
-            entries = fetch_category(
-                CATEGORIES[cat], use_cache=self.use_cache, limit=self.limit
-            )
-            fresh = [e for e in entries if e.get("link") and e["link"] not in self.seen_links]
-            if fresh:
-                new_articles[cat] = fresh
-                for e in fresh:
-                    self.seen_links.add(e["link"])
+        Each category is fetched individually, and new articles are pushed
+        to the UI immediately. After a full cycle through all categories,
+        sleep for refresh_interval before starting the next cycle.
+        """
+        while True:
+            for cat in self.all_categories:
+                entries = fetch_category(
+                    CATEGORIES[cat], use_cache=self.use_cache, limit=self.limit
+                )
+                fresh = [
+                    e for e in entries
+                    if e.get("link") and e["link"] not in self.seen_links
+                ]
+                if fresh:
+                    for e in fresh:
+                        self.seen_links.add(e["link"])
+                    self.call_from_thread(self._ingest, cat, fresh)
 
-        if new_articles:
-            self.call_from_thread(self._merge_and_rebuild, new_articles)
-        else:
-            self.call_from_thread(self._update_status_only)
+            # Update the "last refresh" timestamp after a full cycle
+            self.call_from_thread(self._mark_cycle_done)
 
-    def _update_status_only(self) -> None:
-        self._countdown = self.refresh_interval
-        status = self.query_one(StatusBar)
-        status.last_refresh = datetime.now().strftime("%H:%M:%S")
-        status.countdown = self._countdown
+            # Wait before next full cycle
+            time.sleep(self.refresh_interval)
 
-    def _merge_and_rebuild(self, new_articles: dict[str, list[dict]]) -> None:
-        # Merge new articles into stores
-        for cat, entries in new_articles.items():
-            self.articles[cat].extend(entries)
-            # Sort by published date descending
-            self.articles[cat].sort(
-                key=lambda e: e.get("published", ""), reverse=True
-            )
+    def _ingest(self, category: str, fresh: list[dict]) -> None:
+        """Add new articles and rebuild affected tables. Plays bell sound."""
+        self.articles[category].extend(fresh)
+        self.articles[category].sort(key=lambda e: published_ts(e.get("published")), reverse=True)
 
-        # Rebuild per-category tables
-        for cat in self.all_categories:
-            self._rebuild_table(f"table-{cat}", self.articles[cat], cat)
+        # Rebuild this category's table
+        self._rebuild_table(f"table-{category}", self.articles[category], category)
 
-        # Rebuild "All" table — merge all categories, sorted
-        all_entries = []
-        for cat in self.all_categories:
-            for entry in self.articles[cat]:
-                all_entries.append((cat, entry))
-        all_entries.sort(key=lambda pair: pair[1].get("published", ""), reverse=True)
-        self._rebuild_all_table(all_entries)
+        # Rebuild "All" table
+        self._rebuild_all_table()
 
-        # Update status
+        # Update count
         total = sum(len(v) for v in self.articles.values())
-        self._countdown = self.refresh_interval
         status = self.query_one(StatusBar)
         status.article_count = total
         status.last_refresh = datetime.now().strftime("%H:%M:%S")
-        status.countdown = self._countdown
+
+        # Terminal bell for new articles
+        self.bell()
+
+    def _mark_cycle_done(self) -> None:
+        status = self.query_one(StatusBar)
+        status.last_refresh = datetime.now().strftime("%H:%M:%S")
 
     def _rebuild_table(
         self, table_id: str, entries: list[dict], category: str
@@ -168,10 +158,16 @@ class NewsfeedApp(App):
             ago = time_ago(entry.get("published"))
             table.add_row(title, source, ago, key=link)
 
-    def _rebuild_all_table(self, entries: list[tuple[str, dict]]) -> None:
+    def _rebuild_all_table(self) -> None:
+        all_entries: list[tuple[str, dict]] = []
+        for cat in self.all_categories:
+            for entry in self.articles[cat]:
+                all_entries.append((cat, entry))
+        all_entries.sort(key=lambda pair: published_ts(pair[1].get("published")), reverse=True)
+
         table = self.query_one("#table-all", DataTable)
         table.clear()
-        for cat, entry in entries:
+        for cat, entry in all_entries:
             link = entry.get("link", "")
             color = CATEGORY_COLORS.get(cat, "white")
             title = Text(entry.get("title", ""), style=f"bold {color}")
@@ -186,12 +182,11 @@ class NewsfeedApp(App):
             webbrowser.open(link)
 
     def action_refresh(self) -> None:
-        """Force an immediate refresh."""
-        self._poll_feeds()
+        """Force an immediate refresh (restarts the streaming loop)."""
+        self._stream_feeds()
 
     def action_open_article(self) -> None:
         """Open the currently highlighted article."""
-        # Find the active DataTable in the currently visible tab
         try:
             tabbed = self.query_one(TabbedContent)
             active_pane = tabbed.active_pane
