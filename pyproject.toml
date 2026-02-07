@@ -19,6 +19,9 @@ dependencies = [
 newsfeed = "newsfeed.cli:main"
 news = "newsfeed.cli:main"
 
+[dependency-groups]
+dev = ["pytest>=8.0", "pytest-cov"]
+
 [build-system]
 requires = ["uv_build>=0.9.27,<0.10.0"]
 build-backend = "uv_build"
