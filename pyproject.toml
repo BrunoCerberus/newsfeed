@@ -1,0 +1,23 @@
+[project]
+name = "newsfeed"
+version = "0.1.0"
+description = "Terminal news reader — read categorized news from RSS feeds"
+readme = "README.md"
+authors = [
+    { name = "Bruno Mello", email = "bruno.guitarpro@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "click>=8.1",
+    "feedparser>=6.0",
+    "httpx>=0.28",
+    "rich>=13.0",
+]
+
+[project.scripts]
+newsfeed = "newsfeed.cli:main"
+news = "newsfeed.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.27,<0.10.0"]
+build-backend = "uv_build"
