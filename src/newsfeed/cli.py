@@ -23,6 +23,7 @@ user_config = cfg.load()
 @click.option("--interval", "-i", default=None, type=int, help="Watch refresh interval in seconds.")
 @click.option("--list-categories", is_flag=True, help="Show available categories.")
 @click.option("--open", "open_num", default=None, type=int, help="Open Nth article in browser.")
+@click.option("--live", is_flag=True, help="Launch interactive TUI with live updates.")
 def main(
     category: str | None,
     limit: int | None,
@@ -32,6 +33,7 @@ def main(
     interval: int | None,
     list_categories: bool,
     open_num: int | None,
+    live: bool,
 ) -> None:
     """Read categorized news from RSS feeds in your terminal."""
     if list_categories:
@@ -39,6 +41,13 @@ def main(
         return
 
     limit = limit or user_config["limit"]
+
+    if live:
+        from newsfeed.app import run_live
+
+        watch_interval = interval or user_config["watch_interval"]
+        run_live(refresh_interval=watch_interval, limit=limit, use_cache=not no_cache)
+        return
     show_desc = (not no_desc) and user_config["show_desc"]
     use_cache = not no_cache
     watch_interval = interval or user_config["watch_interval"]
