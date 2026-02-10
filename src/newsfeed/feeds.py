@@ -54,6 +54,15 @@ CATEGORY_COLORS: dict[str, str] = {
     "entertainment": "bright_blue",
 }
 
+CATEGORY_ICONS: dict[str, str] = {
+    "world": "\U0001f30d",
+    "technology": "\U0001f4bb",
+    "business": "\U0001f4c8",
+    "science": "\U0001f52c",
+    "sports": "\u26bd",
+    "entertainment": "\U0001f3ac",
+}
+
 
 def resolve_category(name: str) -> str | None:
     """Resolve a category name or alias to a canonical category name."""

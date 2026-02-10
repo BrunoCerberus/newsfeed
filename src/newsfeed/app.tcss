@@ -1,0 +1,149 @@
+/* Newsfeed TUI — Deep Space Newsroom Stylesheet */
+
+Screen {
+    background: $background;
+}
+
+/* ── Branded header ── */
+AppHeader {
+    dock: top;
+    height: 1;
+    width: 1fr;
+    background: $surface;
+    color: $primary;
+    padding: 0 1;
+}
+
+/* ── News ticker ── */
+Ticker {
+    dock: top;
+    height: 1;
+    width: 1fr;
+    background: $panel;
+    padding: 0 1;
+}
+
+/* ── Main content area ── */
+#main-content {
+    height: 1fr;
+}
+
+/* ── Sidebar with globe and stats ── */
+#sidebar {
+    width: 28;
+    background: $surface;
+    padding: 1 1;
+    border-right: solid $panel;
+}
+
+Globe {
+    width: 26;
+    height: 13;
+    margin: 0 0 1 0;
+}
+
+StatsPanel {
+    width: 26;
+    height: auto;
+    padding: 0 0;
+}
+
+/* ── News panel (right side) ── */
+#news-panel {
+    width: 1fr;
+}
+
+/* ── TabbedContent styling ── */
+TabbedContent {
+    height: 1fr;
+}
+
+TabPane {
+    padding: 0;
+}
+
+Tab {
+    padding: 0 2;
+    transition: background 200ms;
+}
+
+Tab:hover {
+    background: $panel;
+}
+
+Tab.-active {
+    background: $panel;
+    color: $primary;
+}
+
+Underline {
+    color: $primary !important;
+}
+
+Tabs {
+    background: $surface;
+}
+
+/* ── DataTable styling ── */
+DataTable {
+    height: 1fr;
+    background: $background;
+}
+
+DataTable > .datatable--header {
+    background: $surface;
+    color: $text-muted;
+}
+
+DataTable > .datatable--cursor {
+    background: $panel;
+    color: $primary;
+}
+
+DataTable > .datatable--even-row {
+    background: $background;
+}
+
+DataTable > .datatable--odd-row {
+    background: #0f1519;
+}
+
+/* ── Status bar ── */
+StatusBar {
+    dock: bottom;
+    height: 1;
+    background: $surface;
+    color: $text-muted;
+    padding: 0 1;
+}
+
+/* ── Footer ── */
+Footer {
+    background: $surface;
+}
+
+/* ── Category color classes ── */
+.cat-world {
+    color: ansi_bright_red;
+}
+
+.cat-technology {
+    color: ansi_bright_cyan;
+}
+
+.cat-business {
+    color: ansi_bright_green;
+}
+
+.cat-science {
+    color: ansi_bright_magenta;
+}
+
+.cat-sports {
+    color: ansi_bright_yellow;
+}
+
+.cat-entertainment {
+    color: ansi_bright_blue;
+}
+
