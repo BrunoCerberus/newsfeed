@@ -10,13 +10,26 @@
 The only module that imports from all others. Defines the Click command with all CLI flags and arguments. Handles watch mode (loop + sleep), open-in-browser (`webbrowser.open`), and category resolution. Loads user config at module level. The `--live` flag early-returns into `app.run_live()` before any existing logic runs (lazy import for zero cost when not used).
 
 ### `app.py` — Textual TUI (live mode)
-Full-screen interactive app launched by `--live`. Uses `TabbedContent` with one `DataTable` per category tab plus an "All" tab. Background polling via `@work(thread=True, exclusive=True)` calls `fetcher.fetch_category()` in an OS thread and pushes updates to the UI via `call_from_thread()`. Deduplicates articles by link. Key bindings: `q` quit, `r` force refresh, `Enter` open article in browser. `StatusBar` widget shows article count, last refresh time, and countdown to next poll.
+Full-screen interactive app launched by `--live`. Layout: `AppHeader` (branded title + live clock), `Ticker` (scrolling headlines), `Horizontal` sidebar (`Globe` + `StatsPanel`) beside `TabbedContent` with one `DataTable` per category tab plus an "All" tab. Tab labels include category emoji icons. Background polling via `@work(thread=True, exclusive=True)` calls `fetcher.fetch_category()` in an OS thread and pushes updates to the UI via `call_from_thread()`. Deduplicates articles by link. New articles trigger a blue tint flash animation on the affected table and update the ticker. Sidebar hides responsively when terminal width < 90 columns. Key bindings: `q` quit, `r` force refresh, `Enter` open article in browser. Uses external `app.tcss` stylesheet and custom theme from `theme.py`.
+
+### `app.tcss` — TUI stylesheet
+External Textual CSS for the TUI layout. Styles all widgets: screen, header, ticker, globe, sidebar, tabs (with 200ms hover/active transitions), DataTable (alternating row colors, cursor highlight), StatusBar, and Footer. Category color classes use `ansi_bright_*` names.
+
+### `globe.py` — Rotating ASCII globe
+Custom Textual `Widget` that renders a rotating Earth. Pre-computes 60 frames (~14ms) using spherical projection with continent bounding boxes. Ocean = blue chars, Land = green chars, Ice caps = white. Frame index cycles via `set_interval(0.15s)`. 24x13 character grid. `pause()`/`resume()` methods for visibility control.
+
+### `ticker.py` — Scrolling news ticker
+Horizontal scrolling headline bar widget. Concatenates latest headlines with `+++` separators, doubled for seamless looping. `set_interval(0.12s)` shifts offset by 1 char. Headlines colored by category via `CATEGORY_COLORS`. `update_headlines(articles)` called by app after each fetch cycle.
+
+### `theme.py` — Custom dark theme
+Registers a Textual `Theme` named `newsfeed-dark`. Background: `#0d1117` (dark navy), Surface: `#161b22`, Panel: `#21262d`. Primary: `#58a6ff` (bright blue), Secondary: `#f78166` (warm orange), Accent: `#bc8cff` (purple). Also sets footer, scrollbar, and input cursor color variables.
 
 ### `feeds.py` — Data registry
-Pure data, no I/O. Three dicts:
+Pure data, no I/O. Four dicts:
 - `CATEGORIES`: `{category_name: {source_name: rss_url}}` — the single source of truth for what gets fetched
 - `ALIASES`: short names → full category names (e.g., `tech` → `technology`)
 - `CATEGORY_COLORS`: category → Rich color string for display
+- `CATEGORY_ICONS`: category → emoji for TUI tab labels (e.g., `world` → 🌍)
 
 Two helper functions: `resolve_category()` and `get_all_categories()`.
 
@@ -66,15 +79,21 @@ User runs CLI
 ```
 User runs CLI with --live
     → cli.py early-returns into app.run_live()
-    → NewsfeedApp mounts TabbedContent + DataTables + StatusBar
-    → on_mount() triggers _poll_feeds() + sets interval timers
-    → _poll_feeds() runs in @work(thread=True)
-        → fetches all categories via fetcher.fetch_category()
+    → NewsfeedApp registers custom theme, composes layout:
+        AppHeader (clock ticks every 1s)
+        Ticker (scrolls every 0.12s)
+        Horizontal: Sidebar (Globe rotates every 0.15s, StatsPanel) + TabbedContent + DataTables
+        StatusBar + Footer
+    → on_mount() triggers _stream_feeds() + sets 30s time-column refresh timer
+    → _stream_feeds() runs in @work(thread=True)
+        → round-robin fetches each category via fetcher.fetch_category()
         → deduplicates by link
-        → call_from_thread(_merge_and_rebuild)
-            → updates DataTables + StatusBar
-    → interval timer re-triggers _poll_feeds() every N seconds
-    → 1s tick timer updates countdown in StatusBar
+        → call_from_thread(_ingest)
+            → rebuilds DataTables + StatusBar + StatsPanel
+            → updates Ticker headlines
+            → triggers flash animation on affected table
+            → plays notification sound (after initial load)
+    → sleeps refresh_interval, then repeats cycle
 ```
 
 ## Design constraints

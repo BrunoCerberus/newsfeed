@@ -18,12 +18,16 @@ A Python CLI tool that reads RSS news feeds and displays them in the terminal wi
 ```
 src/newsfeed/
 ├── cli.py        # Entry point. Click command with all flags. Wires fetcher → display
-├── app.py        # Textual TUI app. --live launches NewsfeedApp with category tabs + background polling
-├── feeds.py      # Pure data: CATEGORIES dict (category → {source_name → url}), ALIASES, CATEGORY_COLORS
+├── app.py        # Textual TUI app. --live launches NewsfeedApp with globe, ticker, tabs + polling
+├── app.tcss      # External Textual CSS stylesheet for the TUI layout and theme
+├── feeds.py      # Pure data: CATEGORIES, ALIASES, CATEGORY_COLORS, CATEGORY_ICONS
 ├── fetcher.py    # ThreadPoolExecutor fetches all sources in parallel, feedparser parses XML
 ├── display.py    # Rich Console, Panel, Table. One panel per category, color-coded
 ├── cache.py      # JSON files in ~/.cache/newsfeed/, keyed by SHA256(url)[:16], TTL via mtime
 ├── config.py     # Reads ~/.config/newsfeed/config.toml with tomllib, merges with DEFAULTS
+├── globe.py      # Rotating ASCII globe widget — pre-computed 60-frame spherical Earth
+├── ticker.py     # Scrolling news ticker widget — horizontal headline bar
+├── theme.py      # Custom "deep space newsroom" dark Textual theme
 └── utils.py      # time_ago() (RFC 2822 → "3h ago"), sanitize_html(), truncate()
 ```
 
@@ -35,6 +39,7 @@ src/newsfeed/
 - **Categories are defined in `feeds.CATEGORIES`** — to add a source, just add an entry there. No other file needs changes
 - **Aliases in `feeds.ALIASES`** map short names (tech, biz, sci, sport, ent) to full category names
 - **Colors in `feeds.CATEGORY_COLORS`** map each category to a Rich color string
+- **Icons in `feeds.CATEGORY_ICONS`** map each category to an emoji for TUI tab labels
 
 ## Common tasks
 
@@ -44,7 +49,8 @@ Edit `feeds.py` → add to the relevant category dict in `CATEGORIES`. That's it
 ### Add a new category
 1. Add the category dict to `CATEGORIES` in `feeds.py`
 2. Add a color to `CATEGORY_COLORS`
-3. Optionally add an alias to `ALIASES`
+3. Add an emoji to `CATEGORY_ICONS`
+4. Optionally add an alias to `ALIASES`
 
 ### Change cache TTL
 `cache.py:DEFAULT_TTL` (currently 600 seconds / 10 minutes).

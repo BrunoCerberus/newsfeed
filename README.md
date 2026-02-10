@@ -82,12 +82,16 @@ CLI flags override config file values.
 ```
 src/newsfeed/
 ├── cli.py        # Click CLI — args, flags, watch mode, orchestration
-├── app.py        # Textual TUI — live mode with category tabs and polling
+├── app.py        # Textual TUI — live mode with globe, ticker, tabs, and polling
+├── app.tcss      # Textual CSS stylesheet for the TUI
 ├── feeds.py      # RSS feed registry (category → source name → URL)
 ├── fetcher.py    # Parallel HTTP fetch + feedparser parsing
 ├── display.py    # Rich panels, tables, color-coded categories
 ├── cache.py      # JSON file cache with TTL
 ├── config.py     # Optional TOML user config loader
+├── globe.py      # Rotating ASCII globe widget
+├── ticker.py     # Scrolling news ticker widget
+├── theme.py      # Custom dark theme for the TUI
 └── utils.py      # time_ago(), HTML sanitize, truncate
 ```
 
