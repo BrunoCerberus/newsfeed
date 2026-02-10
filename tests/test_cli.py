@@ -105,3 +105,28 @@ class TestOpenOption:
             with patch("newsfeed.cli.display_category", return_value=1):
                 result = runner.invoke(main, ["technology", "--open", "999"])
                 assert "Invalid article number" in result.output
+
+    def test_open_article_with_no_url(self, runner):
+        articles = [
+            {"title": "No Link", "link": "", "description": "", "published": "", "source": "S"},
+        ]
+        with patch("newsfeed.cli.fetch_category", return_value=articles):
+            with patch("newsfeed.cli.display_category", return_value=1):
+                result = runner.invoke(main, ["technology", "--open", "1"])
+                assert "has no URL" in result.output
+
+
+class TestWatchMode:
+    def test_watch_exits_on_keyboard_interrupt(self, runner):
+        call_count = 0
+
+        def mock_sleep(seconds):
+            nonlocal call_count
+            call_count += 1
+            raise KeyboardInterrupt()
+
+        with patch("newsfeed.cli.fetch_category", return_value=[]):
+            with patch("newsfeed.cli.display_all", return_value=[]):
+                with patch("newsfeed.cli.time.sleep", side_effect=mock_sleep):
+                    result = runner.invoke(main, ["--watch"])
+                    assert "Goodbye" in result.output
