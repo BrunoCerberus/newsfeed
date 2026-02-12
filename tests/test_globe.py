@@ -33,11 +33,11 @@ class TestGlobeUnit:
 
     def test_render_different_frames(self):
         globe = Globe()
-        text0 = globe.render().plain
+        text0 = globe.render()
         globe.frame_index = 30
-        text30 = globe.render().plain
-        # Different frames should produce different output
-        assert text0 != text30
+        text30 = globe.render()
+        # Rotation changes colors/styles even though the sphere shape is the same
+        assert text0._spans != text30._spans
 
 
 class TestGlobePauseResume:

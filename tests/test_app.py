@@ -78,14 +78,15 @@ class TestNewsfeedAppInit:
 
 class TestGlobe:
     def test_frame_generation(self):
-        from newsfeed.globe import _generate_frames, NUM_FRAMES, GLOBE_HEIGHT
+        from newsfeed.globe import _generate_frames, NUM_FRAMES, GLOBE_WIDTH, _PIXEL_H
         frames = _generate_frames()
         assert len(frames) == NUM_FRAMES
         for frame in frames:
-            assert len(frame) == GLOBE_HEIGHT
+            assert len(frame) == _PIXEL_H
             for row in frame:
-                assert isinstance(row, str)
-                assert len(row) > 0
+                assert len(row) == GLOBE_WIDTH
+                for pixel in row:
+                    assert pixel is None or (isinstance(pixel, tuple) and len(pixel) == 3)
 
     def test_is_land(self):
         from newsfeed.globe import _is_land
